@@ -81,13 +81,15 @@ function blob(
   rx: number,
   ry: number,
   tile: number,
-  onlySand = true
+  onlySand = true,
+  skip?: Set<string>
 ): void {
   for (let y = Math.max(1, Math.floor(cy - ry)); y <= Math.min(MAP_H - 2, Math.ceil(cy + ry)); y++) {
     for (let x = Math.max(1, Math.floor(cx - rx)); x <= Math.min(MAP_W - 2, Math.ceil(cx + rx)); x++) {
       const dx = (x - cx) / rx;
       const dy = (y - cy) / ry;
       if (dx * dx + dy * dy > 1) continue;
+      if (skip?.has(`${x},${y}`)) continue;
       const cur = g[y][x];
       if (isRoadTile(cur)) continue;
       if (onlySand && cur !== T.SAND && cur !== T.SAND2 && cur !== T.MUD) continue;
@@ -184,18 +186,54 @@ export function buildMap(): MapData {
   vRoad(g, 39, 4, 5); // enemy north gate -> ring
   vRoad(g, 39, 74, 75); // player south gate -> ring
 
-  // --- water, mud (before fortresses; blobs skip roads) ---
-  blob(g, 15, 35, 3.6, 3.0, T.WATER);
+  // --- object home positions (tile coords), reserved so terrain never buries them ---
+  const spawnT: [number, number] = [FORT_X0 + 17, PLAYER_Y0 + FORT_H - 1 - 13];
+  const fuelT: [number, number][] = [
+    [FORT_X0 + 8, PLAYER_Y0 + FORT_H - 1 - 22],
+    [FORT_X0 + 8, ENEMY_Y0 + 22],
+    [20, 37],
+    [60, 42]
+  ];
+  const repairT: [number, number][] = [
+    [FORT_X0 + 32, PLAYER_Y0 + FORT_H - 1 - 22],
+    [FORT_X0 + 32, ENEMY_Y0 + 22]
+  ];
+  const ammoT: [number, number][] = [
+    [FORT_X0 + 19, PLAYER_Y0 + FORT_H - 1 - 3],
+    [FORT_X0 + 19, ENEMY_Y0 + 3],
+    [15, 41],
+    [64, 37]
+  ];
+  const etankT: [number, number][] = [[32, 34], [47, 34]];
+  const infT: [number, number][] = [
+    [FORT_X0 + 4, ENEMY_Y0 + 11],
+    [FORT_X0 + 35, ENEMY_Y0 + 11],
+    [FORT_X0 + 25, ENEMY_Y0 + 22],
+    [FORT_X0 + 12, ENEMY_Y0 + 22],
+    [FORT_X0 + 20, ENEMY_Y0 + 20],
+    [36, 34],
+    [44, 42],
+    [60, 39]
+  ];
+  const reserved = new Set<string>();
+  for (const [tx, ty] of [spawnT, ...fuelT, ...repairT, ...ammoT, ...etankT, ...infT]) {
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) reserved.add(`${tx + dx},${ty + dy}`);
+    }
+  }
+
+  // --- water, mud (before fortresses; blobs skip roads; water spares reserved tiles) ---
+  blob(g, 15, 35, 3.6, 3.0, T.WATER, true, reserved);
   blob(g, 15, 35, 5.2, 4.4, T.MUD); // shoreline mud (fills around the water)
-  blob(g, 64, 44, 3.4, 2.6, T.WATER);
+  blob(g, 64, 44, 3.4, 2.6, T.WATER, true, reserved);
   blob(g, 64, 44, 5.0, 4.0, T.MUD);
   blob(g, 25, 44, 3.2, 2.0, T.MUD); // bog patches in the corridor
   blob(g, 54, 34, 3.2, 2.0, T.MUD);
   blob(g, 5, 55, 2.6, 3.2, T.MUD); // western flank marsh
   blob(g, 75, 24, 2.4, 3.0, T.MUD);
   // re-carve water that the mud pass may have missed at the centres
-  blob(g, 15, 35, 3.6, 3.0, T.WATER, false);
-  blob(g, 64, 44, 3.4, 2.6, T.WATER, false);
+  blob(g, 15, 35, 3.6, 3.0, T.WATER, false, reserved);
+  blob(g, 64, 44, 3.4, 2.6, T.WATER, false, reserved);
 
   // --- fortresses ---
   stampFortress(g, FORT_X0, ENEMY_Y0, false);
@@ -204,6 +242,7 @@ export function buildMap(): MapData {
   // --- natural scatter: trees, rocks, hedgehogs, craters ---
   const clear = (x: number, y: number): boolean => {
     if (x < 2 || y < 2 || x >= MAP_W - 2 || y >= MAP_H - 2) return false;
+    if (reserved.has(`${x},${y}`)) return false;
     // stay out of both fortresses (+1 margin)
     if (x >= FORT_X0 - 1 && x <= FORT_X0 + FORT_W && y >= ENEMY_Y0 - 1 && y <= ENEMY_Y0 + FORT_H) return false;
     if (x >= FORT_X0 - 1 && x <= FORT_X0 + FORT_W && y >= PLAYER_Y0 - 1 && y <= PLAYER_Y0 + FORT_H) return false;
@@ -255,6 +294,45 @@ export function buildMap(): MapData {
     if (clear(x, y)) g[y][x] = T.CRATER;
   }
 
+  // ---- reachability: flood-fill drivable tiles from the player spawn ----
+  const passable = (v: number): boolean =>
+    v !== T.WALL && v !== T.WALL_DMG && v !== T.BUNKER && v !== T.BUNKER_DOOR &&
+    v !== T.HEDGEHOG && v !== T.WATER && v !== T.ROCK;
+  const reach = new Set<string>();
+  {
+    const q: [number, number][] = [spawnT];
+    reach.add(`${spawnT[0]},${spawnT[1]}`);
+    while (q.length) {
+      const [cx, cy] = q.pop()!;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+        const nx = cx + dx;
+        const ny = cy + dy;
+        if (nx < 1 || ny < 1 || nx >= MAP_W - 1 || ny >= MAP_H - 1) continue;
+        const key = `${nx},${ny}`;
+        if (reach.has(key) || !passable(g[ny][nx])) continue;
+        reach.add(key);
+        q.push([nx, ny]);
+      }
+    }
+  }
+  /** move a point to the nearest tank-reachable tile if it isn't on one */
+  const snap = ([tx, ty]: [number, number]): [number, number] => {
+    if (reach.has(`${tx},${ty}`)) return [tx, ty];
+    for (let r = 1; r < 12; r++) {
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+          if (reach.has(`${tx + dx},${ty + dy}`)) return [tx + dx, ty + dy];
+        }
+      }
+    }
+    return [tx, ty]; // design guarantees a hit well before r=12
+  };
+  const snapP = (pts: [number, number][]): Pt[] => pts.map(snap).map(([x, y]) => P(x, y));
+  if (!reach.has(`${FORT_X0 + 20},${ENEMY_Y0 + 13}`) || !reach.has(`${FORT_X0 + 20},${PLAYER_Y0 + FORT_H - 1 - 13}`)) {
+    console.warn('MapBuilder: a flag is not reachable from the player spawn');
+  }
+
   // ---- object placement (tile coords -> px) -----------------------------
   const enemyFlag = P(FORT_X0 + 20, ENEMY_Y0 + 13); // keep centre
   const playerFlag = P(FORT_X0 + 20, PLAYER_Y0 + FORT_H - 1 - 13);
@@ -262,7 +340,7 @@ export function buildMap(): MapData {
 
   return {
     grid: g,
-    playerSpawn: P(FORT_X0 + 17, PLAYER_Y0 + FORT_H - 1 - 13),
+    playerSpawn: P(spawnT[0], spawnT[1]),
     playerBaseCenter: playerFlag,
     enemyBaseCenter: enemyFlag,
     playerFortRect: {
@@ -291,33 +369,11 @@ export function buildMap(): MapData {
       P(FORT_X0 + 14, ENEMY_Y0 + 17),
       P(FORT_X0 + 25, ENEMY_Y0 + 17)
     ],
-    fuelDumps: [
-      P(FORT_X0 + 8, PLAYER_Y0 + FORT_H - 1 - 22), // player courtyard
-      P(FORT_X0 + 8, ENEMY_Y0 + 22),
-      P(20, 37), // corridor dumps
-      P(60, 42)
-    ],
-    repairPads: [
-      P(FORT_X0 + 32, PLAYER_Y0 + FORT_H - 1 - 22),
-      P(FORT_X0 + 32, ENEMY_Y0 + 22)
-    ],
-    ammoCrates: [
-      P(FORT_X0 + 19, PLAYER_Y0 + FORT_H - 1 - 3),
-      P(FORT_X0 + 19, ENEMY_Y0 + 3),
-      P(15, 41),
-      P(64, 37)
-    ],
-    enemyTankSpawns: [P(32, 34), P(47, 34)],
-    infantrySpawns: [
-      P(FORT_X0 + 4, ENEMY_Y0 + 11),
-      P(FORT_X0 + 35, ENEMY_Y0 + 11),
-      P(FORT_X0 + 25, ENEMY_Y0 + 22),
-      P(FORT_X0 + 12, ENEMY_Y0 + 22),
-      P(FORT_X0 + 20, ENEMY_Y0 + 20),
-      P(36, 34),
-      P(44, 42),
-      P(60, 39)
-    ],
+    fuelDumps: snapP(fuelT),
+    repairPads: snapP(repairT),
+    ammoCrates: snapP(ammoT),
+    enemyTankSpawns: snapP(etankT),
+    infantrySpawns: snapP(infT),
     patrolPoints: [
       // a loop: west along the corridor, up the ring, across the top,
       // down the east side, back along the corridor, around the south

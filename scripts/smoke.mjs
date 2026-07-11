@@ -117,6 +117,40 @@ async function main() {
       });
       check('enemy shell damages player', s3.hp < s2.hp, `hp ${s2.hp} -> ${s3.hp}`);
       check('player survives the hit intact', alive);
+
+      // every pickup must sit on a tile the tank can drive to from spawn
+      const stranded = await page.evaluate(() => {
+        const b = window.__FP.scene.getScene('Battle');
+        const g = b.mapData.grid;
+        const W = g[0].length;
+        const H = g.length;
+        const solid = new Set([4, 5, 7, 8, 10, 12, 14]); // walls, bunkers, hedgehog, water, rock
+        const sx = Math.floor(b.mapData.playerSpawn.x / 32);
+        const sy = Math.floor(b.mapData.playerSpawn.y / 32);
+        const reach = new Set([sx + ',' + sy]);
+        const q = [[sx, sy]];
+        while (q.length) {
+          const [cx, cy] = q.pop();
+          for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            const nx = cx + dx, ny = cy + dy;
+            if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+            const key = nx + ',' + ny;
+            if (reach.has(key) || solid.has(g[ny][nx])) continue;
+            reach.add(key);
+            q.push([nx, ny]);
+          }
+        }
+        const bad = [];
+        for (const grp of [b.fuelGrp, b.repairGrp, b.ammoGrp]) {
+          for (const o of grp.getChildren()) {
+            const c = o.body.center;
+            const key = Math.floor(c.x / 32) + ',' + Math.floor(c.y / 32);
+            if (!reach.has(key)) bad.push(o.texture.key + '@' + key);
+          }
+        }
+        return bad;
+      });
+      check('all pickups reachable', stranded.length === 0, stranded.join(' '));
     }
     await sleep(400);
     await page.screenshot({ path: `${SHOT_DIR}/3-battle${MOBILE ? '-mobile' : ''}.png` });
