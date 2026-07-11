@@ -76,7 +76,7 @@ export class EnemyTank extends Tank {
     const inFireRange = this.aiState === 'chase' && dist < FIRE_RANGE;
     // slow down to aim, stop when lined up for a shot
     const throttle = inFireRange && Math.abs(diff) < 0.3 ? (dist < 120 ? 0 : 0.5) : 1;
-    this.drive(dt, throttle, 0, desired, SPEED, TURN);
+    this.drive(dt, throttle, 0, desired, SPEED * this.battle.speedFactorAt(this.x, this.y), TURN);
 
     if (playerAlive && this.aiState === 'chase' && Math.abs(diff) < 0.15) {
       if (dist < FIRE_RANGE && this.fireCd === 0) {

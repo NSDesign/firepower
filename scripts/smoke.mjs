@@ -102,9 +102,11 @@ async function main() {
       check('cannon fires', s2.shells < s1.shells, `shells ${s1.shells} -> ${s2.shells}`);
       check('mg fires', s2.mg < s1.mg, `mg ${s1.mg} -> ${s2.mg}`);
 
-      // regression: enemy shell hitting the player must damage it, not crash
+      // regression: enemy shell hitting the player must damage it, not crash.
+      // Park the tank in the open keep courtyard so the shell's path is clear.
       await page.evaluate(() => {
         const b = window.__FP.scene.getScene('Battle');
+        b.player.body.reset(1296, 1936);
         b.spawnShell(b.player.x, b.player.y - 60, Math.PI / 2, 'enemy');
       });
       await sleep(1000);

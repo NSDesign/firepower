@@ -215,8 +215,63 @@ function drawCrater(ctx: Ctx, ox: number, rnd: () => number): void {
   ctx.fill();
 }
 
+function drawWater(ctx: Ctx, ox: number, rnd: () => number): void {
+  speckle(ctx, ox, '#2a58a0', [
+    ['#234b8a', 30],
+    ['#3868b4', 30]
+  ], rnd);
+  // ripple highlights
+  ctx.fillStyle = '#5c8ecb';
+  for (let i = 0; i < 7; i++) {
+    const x = ox + 2 + Math.floor(rnd() * 24);
+    const y = 3 + Math.floor(rnd() * 26);
+    ctx.fillRect(x, y, 3 + Math.floor(rnd() * 3), 1);
+  }
+}
+
+function drawMud(ctx: Ctx, ox: number, rnd: () => number): void {
+  speckle(ctx, ox, '#6b4a2a', [
+    ['#5a3d20', 40],
+    ['#7d5a35', 34],
+    ['#4a3118', 14]
+  ], rnd);
+  // tank ruts
+  ctx.fillStyle = '#4a3118';
+  ctx.fillRect(ox + 4, 6, 24, 2);
+  ctx.fillRect(ox + 6, 22, 22, 2);
+  ctx.fillStyle = '#7d5a35';
+  ctx.fillRect(ox + 4, 8, 24, 1);
+  ctx.fillRect(ox + 6, 24, 22, 1);
+}
+
+function drawRock(ctx: Ctx, ox: number, rnd: () => number): void {
+  drawSandBase(ctx, ox, rnd, false);
+  const boulders: [number, number, number][] = [
+    [15, 17, 10],
+    [8, 10, 6],
+    [23, 11, 6],
+    [10, 23, 5]
+  ];
+  for (const [cx, cy, r] of boulders) {
+    ctx.fillStyle = '#4c4c4c';
+    ctx.beginPath();
+    ctx.arc(ox + cx + 1, cy + 2, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  for (const [cx, cy, r] of boulders) {
+    ctx.fillStyle = '#7a7a7a';
+    ctx.beginPath();
+    ctx.arc(ox + cx, cy, r - 1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#999999';
+    ctx.beginPath();
+    ctx.arc(ox + cx - 2, cy - 2, Math.max(2, r - 4), 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
 function createTiles(scene: Phaser.Scene): void {
-  const count = 12;
+  const count = 15;
   const tex = canvas(scene, 'tiles', count * TILE, TILE);
   const ctx = tex.getContext();
   const rnd = lcg(1234);
@@ -232,6 +287,9 @@ function createTiles(scene: Phaser.Scene): void {
   drawTree(ctx, T.TREE * TILE, rnd);
   drawHedgehog(ctx, T.HEDGEHOG * TILE, rnd);
   drawCrater(ctx, T.CRATER * TILE, rnd);
+  drawWater(ctx, T.WATER * TILE, rnd);
+  drawMud(ctx, T.MUD * TILE, rnd);
+  drawRock(ctx, T.ROCK * TILE, rnd);
   tex.refresh();
 }
 

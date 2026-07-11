@@ -127,11 +127,11 @@ export default class HudScene extends Phaser.Scene {
     };
 
     const b = this.battle;
-    // bases
+    // fortress outlines
     r.lineStyle(1, 0x4c5257);
-    const bz = 15 * 32 * k;
-    r.strokeRect(RADAR_X + b.mapData.playerBaseCenter.x * k - bz / 2, RADAR_Y + b.mapData.playerBaseCenter.y * k - bz / 2, bz, bz);
-    r.strokeRect(RADAR_X + b.mapData.enemyBaseCenter.x * k - bz / 2, RADAR_Y + b.mapData.enemyBaseCenter.y * k - bz / 2, bz, bz);
+    for (const f of [b.mapData.playerFortRect, b.mapData.enemyFortRect]) {
+      r.strokeRect(RADAR_X + f.x * k, RADAR_Y + f.y * k, f.w * k, f.h * k);
+    }
 
     for (const t of b.turrets) {
       if (!t.dead) dot(t.base.x, t.base.y, 0x7a2a1e, 2);

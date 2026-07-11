@@ -165,16 +165,24 @@ export default class BattleScene extends Phaser.Scene {
     ph.add.collider(this.infantryGrp, this.layer);
     ph.add.collider(this.crewGrp, this.layer);
 
+    // projectiles fly over water — only ground obstacles stop them
+    const notWater = (
+      a: unknown,
+      b: unknown
+    ): boolean => {
+      const tile = (a instanceof Phaser.Tilemaps.Tile ? a : b) as Phaser.Tilemaps.Tile;
+      return tile.index !== T.WATER;
+    };
     ph.add.collider(this.shellsP, this.layer, (shell, tile) =>
-      this.onShellHitsTile(shell as AImage, tile as Phaser.Tilemaps.Tile)
+      this.onShellHitsTile(shell as AImage, tile as Phaser.Tilemaps.Tile), notWater
     );
     ph.add.collider(this.shellsE, this.layer, (shell) => {
       const s = shell as AImage;
       this.boom(s.x, s.y, false);
       s.destroy();
-    });
-    ph.add.collider(this.bulletsP, this.layer, (b) => (b as AImage).destroy());
-    ph.add.collider(this.bulletsE, this.layer, (b) => (b as AImage).destroy());
+    }, notWater);
+    ph.add.collider(this.bulletsP, this.layer, (b) => (b as AImage).destroy(), notWater);
+    ph.add.collider(this.bulletsE, this.layer, (b) => (b as AImage).destroy(), notWater);
 
     ph.add.overlap(this.shellsP, this.enemyTanks, (shell, tank) => {
       (tank as EnemyTank).takeHit(BAL.shellDamage);
@@ -371,6 +379,15 @@ export default class BattleScene extends Phaser.Scene {
   private setTile(tx: number, ty: number, index: number): void {
     const tile = this.layer.putTileAt(index, tx, ty);
     tile.setCollision(SOLID_TILES.includes(index));
+  }
+
+  /** terrain drag: mud bogs tanks down, brush slows them */
+  speedFactorAt(x: number, y: number): number {
+    const tile = this.layer.getTileAtWorldXY(x, y);
+    if (!tile) return 1;
+    if (tile.index === T.MUD) return 0.4;
+    if (tile.index === T.TREE) return 0.6;
+    return 1;
   }
 
   // ------------------------------------------------------------ combat events

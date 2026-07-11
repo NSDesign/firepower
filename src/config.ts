@@ -23,10 +23,15 @@ export const enum T {
   BUNKER_DOOR = 8,
   TREE = 9,
   HEDGEHOG = 10,
-  CRATER = 11
+  CRATER = 11,
+  WATER = 12,
+  MUD = 13,
+  ROCK = 14
 }
 
-export const SOLID_TILES: number[] = [T.WALL, T.WALL_DMG, T.BUNKER, T.BUNKER_DOOR, T.HEDGEHOG];
+export const SOLID_TILES: number[] = [
+  T.WALL, T.WALL_DMG, T.BUNKER, T.BUNKER_DOOR, T.HEDGEHOG, T.WATER, T.ROCK
+];
 
 export type Team = 'player' | 'enemy';
 

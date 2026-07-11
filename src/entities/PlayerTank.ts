@@ -35,7 +35,8 @@ export class PlayerTank extends Tank {
       this.hp -= dt * 1.5;
       if (this.hp <= 0) this.explode();
     }
-    this.drive(dt, throttle, intent.steer, intent.targetAngle, this.spec.speed, this.spec.turnRate);
+    const terrain = this.battle.speedFactorAt(this.x, this.y);
+    this.drive(dt, throttle, intent.steer, intent.targetAngle, this.spec.speed * terrain, this.spec.turnRate);
     this.effort = Math.abs(throttle);
 
     // fuel burn
