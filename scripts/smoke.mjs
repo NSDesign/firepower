@@ -101,6 +101,20 @@ async function main() {
       const s2 = await page.evaluate(() => window.__FP_STATE);
       check('cannon fires', s2.shells < s1.shells, `shells ${s1.shells} -> ${s2.shells}`);
       check('mg fires', s2.mg < s1.mg, `mg ${s1.mg} -> ${s2.mg}`);
+
+      // regression: enemy shell hitting the player must damage it, not crash
+      await page.evaluate(() => {
+        const b = window.__FP.scene.getScene('Battle');
+        b.spawnShell(b.player.x, b.player.y - 60, Math.PI / 2, 'enemy');
+      });
+      await sleep(1000);
+      const s3 = await page.evaluate(() => window.__FP_STATE);
+      const alive = await page.evaluate(() => {
+        const b = window.__FP.scene.getScene('Battle');
+        return b.player.active && !!b.player.body;
+      });
+      check('enemy shell damages player', s3.hp < s2.hp, `hp ${s2.hp} -> ${s3.hp}`);
+      check('player survives the hit intact', alive);
     }
     await sleep(400);
     await page.screenshot({ path: `${SHOT_DIR}/3-battle${MOBILE ? '-mobile' : ''}.png` });

@@ -209,16 +209,18 @@ export default class BattleScene extends Phaser.Scene {
       (b as AImage).destroy();
     });
 
-    ph.add.overlap(this.shellsE, this.player, (shell) => {
-      const s = shell as AImage;
+    // NOTE: Phaser delivers sprite-vs-group overlap args as (sprite, groupChild)
+    // regardless of registration order — resolve the projectile explicitly.
+    ph.add.overlap(this.shellsE, this.player, (a, b) => {
+      const s = (a === (this.player as unknown) ? b : a) as AImage;
       this.player?.takeHit(s.getData('dmg') as number);
       this.boom(s.x, s.y, false);
       s.destroy();
-      Sfx.hit();
     });
-    ph.add.overlap(this.bulletsE, this.player, (b) => {
-      this.player?.takeHit((b as AImage).getData('dmg') as number);
-      (b as AImage).destroy();
+    ph.add.overlap(this.bulletsE, this.player, (a, b) => {
+      const s = (a === (this.player as unknown) ? b : a) as AImage;
+      this.player?.takeHit(s.getData('dmg') as number);
+      s.destroy();
     });
 
     ph.add.overlap(this.player, this.infantryGrp, (_p, inf) => (inf as Infantry).die());

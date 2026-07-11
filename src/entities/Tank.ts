@@ -34,6 +34,7 @@ export class Tank extends Phaser.Physics.Arcade.Sprite {
     speed: number,
     turnRate: number
   ): void {
+    if (!this.body) return;
     if (targetAngle !== null) {
       const diff = Phaser.Math.Angle.Wrap(targetAngle - this.rotation);
       const step = turnRate * dt;
@@ -61,7 +62,9 @@ export class Tank extends Phaser.Physics.Arcade.Sprite {
     if (this.isDead) return;
     this.hp -= dmg;
     this.setTintFill(0xffffff);
-    this.battle.time.delayedCall(60, () => this.clearTint());
+    this.battle.time.delayedCall(60, () => {
+      if (this.active) this.clearTint();
+    });
     if (this.hp <= 0) this.explode();
   }
 
