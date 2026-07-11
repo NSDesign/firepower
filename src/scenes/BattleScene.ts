@@ -118,13 +118,17 @@ export default class BattleScene extends Phaser.Scene {
     for (const p of this.mapData.fuelDumps) {
       const img = this.fuelGrp.create(p.x, p.y, 'fuel') as AImage;
       img.setDepth(DEPTH.pickup).setData('amount', 250);
+      this.floatPickup(img);
     }
     for (const p of this.mapData.repairPads) {
-      (this.repairGrp.create(p.x, p.y, 'repair') as AImage).setDepth(DEPTH.pickup);
+      const img = this.repairGrp.create(p.x, p.y, 'repair') as AImage;
+      img.setDepth(DEPTH.pickup);
+      this.floatPickup(img);
     }
     for (const p of this.mapData.ammoCrates) {
       const img = this.ammoGrp.create(p.x, p.y, 'ammo') as AImage;
       img.setDepth(DEPTH.pickup).setData('ready', true);
+      this.floatPickup(img);
     }
 
     // --- enemies ---
@@ -381,6 +385,26 @@ export default class BattleScene extends Phaser.Scene {
     tile.setCollision(SOLID_TILES.includes(index));
   }
 
+  /** Pickups hover with a slow bob over a grounded shadow so they stand out. */
+  private floatPickup(img: AImage): void {
+    const shadow = this.add
+      .image(img.x, img.y + img.height / 2 + 3, 'shadow')
+      .setDepth(DEPTH.pickup - 1)
+      .setAlpha(0.55)
+      .setScale(Math.max(0.7, img.width / 24), 0.7);
+    img.setData('shadow', shadow);
+    img.y -= 3; // lift off the ground
+    this.tweens.add({
+      targets: img,
+      y: img.y - 4,
+      duration: 1100 + Math.random() * 500,
+      delay: Math.random() * 900,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    });
+  }
+
   /** terrain drag: mud bogs tanks down, brush slows them */
   speedFactorAt(x: number, y: number): number {
     const tile = this.layer.getTileAtWorldXY(x, y);
@@ -512,11 +536,16 @@ export default class BattleScene extends Phaser.Scene {
   private onAmmo(crate: AImage): void {
     const p = this.player;
     if (!p || p.isDead || !crate.getData('ready')) return;
+    const shadow = crate.getData('shadow') as Phaser.GameObjects.Image | undefined;
     crate.setData('ready', false).setVisible(false);
+    shadow?.setVisible(false);
     p.resupply();
     Sfx.pickup();
     this.time.delayedCall(45000, () => {
-      if (crate.active) crate.setData('ready', true).setVisible(true);
+      if (crate.active) {
+        crate.setData('ready', true).setVisible(true);
+        shadow?.setVisible(true);
+      }
     });
   }
 
