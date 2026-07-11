@@ -278,18 +278,18 @@ export function buildMap(): MapData {
       h: zone
     },
     enemyTurrets: [
-      // fortress corners
-      P(FORT_X0 + 2, ENEMY_Y0 + 2),
-      P(FORT_X0 + 37, ENEMY_Y0 + 2),
-      P(FORT_X0 + 2, ENEMY_Y0 + 23),
-      P(FORT_X0 + 37, ENEMY_Y0 + 23),
-      // keep guard posts
-      P(FORT_X0 + 13, ENEMY_Y0 + 19),
-      P(FORT_X0 + 26, ENEMY_Y0 + 19),
-      // field emplacements watching the corridor
-      P(28, 36),
-      P(52, 36),
-      P(67, 37)
+      // emplacements built into the outer wall: the four corners...
+      P(FORT_X0, ENEMY_Y0),
+      P(FORT_X0 + FORT_W - 1, ENEMY_Y0),
+      P(FORT_X0, ENEMY_Y0 + FORT_H - 1),
+      P(FORT_X0 + FORT_W - 1, ENEMY_Y0 + FORT_H - 1),
+      // ...and along the corridor-facing wall between the gates
+      P(FORT_X0 + 6, ENEMY_Y0 + FORT_H - 1),
+      P(FORT_X0 + 19, ENEMY_Y0 + FORT_H - 1),
+      P(FORT_X0 + 33, ENEMY_Y0 + FORT_H - 1),
+      // keep wall corners guarding the flag
+      P(FORT_X0 + 14, ENEMY_Y0 + 17),
+      P(FORT_X0 + 25, ENEMY_Y0 + 17)
     ],
     fuelDumps: [
       P(FORT_X0 + 8, PLAYER_Y0 + FORT_H - 1 - 22), // player courtyard

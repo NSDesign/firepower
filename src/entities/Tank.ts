@@ -21,7 +21,7 @@ export class Tank extends Phaser.Physics.Arcade.Sprite {
     scene.physics.add.existing(this);
     this.setDepth(DEPTH.tank);
     const body = this.body as Phaser.Physics.Arcade.Body;
-    body.setCircle(9, this.width / 2 - 9, this.height / 2 - 9);
+    body.setCircle(8, this.width / 2 - 8, this.height / 2 - 8);
     this.setCollideWorldBounds(true);
   }
 

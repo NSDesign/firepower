@@ -33,6 +33,8 @@ export default class BattleScene extends Phaser.Scene {
   heliGrp!: Phaser.Physics.Arcade.Group;
   turrets: Turret[] = [];
   heli: Helicopter | null = null;
+  /** wall-mounted turrets keyed by the tile they occupy */
+  private turretAt = new Map<string, Turret>();
 
   private layer!: Phaser.Tilemaps.TilemapLayer;
   private inputCtl!: InputController;
@@ -110,10 +112,12 @@ export default class BattleScene extends Phaser.Scene {
     this.carryIcon = this.add.sprite(0, 0, 'flag_red', '0').setDepth(DEPTH.ui).setVisible(false).play('flagRed');
 
     // --- defenses + pickups ---
+    this.turretAt.clear();
     for (const p of this.mapData.enemyTurrets) {
       const t = new Turret(this, p.x, p.y);
       this.turretGrp.add(t.base);
       this.turrets.push(t);
+      this.turretAt.set(`${Math.floor(p.x / TILE)},${Math.floor(p.y / TILE)}`, t);
     }
     for (const p of this.mapData.fuelDumps) {
       const img = this.fuelGrp.create(p.x, p.y, 'fuel') as AImage;
@@ -359,7 +363,13 @@ export default class BattleScene extends Phaser.Scene {
   }
 
   private onShellHitsTile(shell: AImage, tile: Phaser.Tilemaps.Tile): void {
-    this.damageTile(tile);
+    // an emplacement built into this wall section soaks the hit while it stands
+    const turret = this.turretAt.get(`${tile.x},${tile.y}`);
+    if (turret && !turret.dead) {
+      turret.takeHit(BAL.shellDamage);
+    } else {
+      this.damageTile(tile);
+    }
     this.boom(shell.x, shell.y, false);
     shell.destroy();
   }

@@ -19,7 +19,7 @@ export class Turret {
     (this.base.body as Phaser.Physics.Arcade.StaticBody).setCircle(10, 1, 1);
     this.base.setData('turret', this);
     this.gun = battle.add.image(x, y, 'turgun').setDepth(DEPTH.turret + 1);
-    this.gun.setOrigin(6 / 24, 0.5); // pivot on the mount
+    this.gun.setOrigin(5 / 28, 0.5); // pivot on the mount
     this.gun.rotation = Math.random() * Math.PI * 2;
   }
 
@@ -39,8 +39,9 @@ export class Turret {
     this.fireCd = Math.max(0, this.fireCd - dt);
     if (Math.abs(diff) < 0.12 && this.fireCd === 0) {
       this.fireCd = 2.4;
-      const mx = this.base.x + Math.cos(this.gun.rotation) * 18;
-      const my = this.base.y + Math.sin(this.gun.rotation) * 18;
+      // clear the wall tile the emplacement sits on
+      const mx = this.base.x + Math.cos(this.gun.rotation) * 26;
+      const my = this.base.y + Math.sin(this.gun.rotation) * 26;
       this.battle.spawnShell(mx, my, this.gun.rotation, 'enemy', true);
       if (dist < 320) Sfx.cannon();
     }

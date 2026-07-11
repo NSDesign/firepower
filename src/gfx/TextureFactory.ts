@@ -147,13 +147,13 @@ function drawBunkerDoor(ctx: Ctx, ox: number): void {
 
 function drawTree(ctx: Ctx, ox: number, rnd: () => number): void {
   drawSandBase(ctx, ox, rnd, false);
-  // bush blob
+  // full-tile canopy so trees loom over the (24px) tanks
   const blobs: [number, number, number][] = [
-    [16, 16, 11],
-    [10, 12, 7],
-    [22, 12, 7],
-    [11, 21, 7],
-    [21, 21, 7]
+    [16, 16, 14],
+    [8, 10, 8],
+    [24, 10, 8],
+    [9, 23, 8],
+    [23, 23, 8]
   ];
   for (const [cx, cy, r] of blobs) {
     ctx.fillStyle = '#3f7d2c';
@@ -167,9 +167,9 @@ function drawTree(ctx: Ctx, ox: number, rnd: () => number): void {
     ctx.arc(ox + cx - 1, cy - 1, r - 2, 0, Math.PI * 2);
     ctx.fill();
   }
-  for (let i = 0; i < 26; i++) {
+  for (let i = 0; i < 40; i++) {
     const a = rnd() * Math.PI * 2;
-    const d = rnd() * 9;
+    const d = rnd() * 12;
     px(ctx, ox + 16 + Math.floor(Math.cos(a) * d) - 1, 15 + Math.floor(Math.sin(a) * d), '#7fcf5e');
   }
 }
@@ -305,40 +305,42 @@ interface TankPalette {
 }
 
 function drawTank(scene: Phaser.Scene, key: string, p: TankPalette, hullLen: 'short' | 'mid' | 'long'): void {
-  const w = 28;
-  const h = 20;
+  // 24x16 keeps the tank small against walls, buildings, and trees,
+  // matching the original's scale
+  const w = 24;
+  const h = 16;
   const tex = canvas(scene, key, w, h);
   const ctx = tex.getContext();
-  const x0 = hullLen === 'short' ? 5 : hullLen === 'mid' ? 3 : 1;
-  const x1 = hullLen === 'short' ? 22 : hullLen === 'mid' ? 24 : 26;
+  const x0 = hullLen === 'short' ? 4 : hullLen === 'mid' ? 2 : 1;
+  const x1 = hullLen === 'short' ? 19 : hullLen === 'mid' ? 21 : 22;
   // treads (top and bottom, tank faces right)
-  rect(ctx, x0 - 1, 0, x1 - x0 + 2, 5, p.tread);
-  rect(ctx, x0 - 1, 15, x1 - x0 + 2, 5, p.tread);
+  rect(ctx, x0 - 1, 0, x1 - x0 + 2, 4, p.tread);
+  rect(ctx, x0 - 1, 12, x1 - x0 + 2, 4, p.tread);
   for (let x = x0; x < x1; x += 3) {
-    rect(ctx, x, 1, 1, 3, p.treadLight);
-    rect(ctx, x, 16, 1, 3, p.treadLight);
+    rect(ctx, x, 1, 1, 2, p.treadLight);
+    rect(ctx, x, 13, 1, 2, p.treadLight);
   }
   // hull
-  rect(ctx, x0, 4, x1 - x0, 12, p.hull);
-  rect(ctx, x0, 4, x1 - x0, 2, p.hullLight);
-  rect(ctx, x0, 14, x1 - x0, 2, p.hullDark);
-  rect(ctx, x1 - 2, 5, 2, 10, p.hullDark);
+  rect(ctx, x0, 3, x1 - x0, 10, p.hull);
+  rect(ctx, x0, 3, x1 - x0, 2, p.hullLight);
+  rect(ctx, x0, 11, x1 - x0, 2, p.hullDark);
+  rect(ctx, x1 - 2, 4, 2, 8, p.hullDark);
   // turret
   ctx.fillStyle = p.hullDark;
   ctx.beginPath();
-  ctx.arc(13, 10, 6, 0, Math.PI * 2);
+  ctx.arc(10, 8, 5, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = p.hullLight;
   ctx.beginPath();
-  ctx.arc(12, 9, 4, 0, Math.PI * 2);
+  ctx.arc(9, 7, 3.5, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = p.hull;
   ctx.beginPath();
-  ctx.arc(13, 10, 4, 0, Math.PI * 2);
+  ctx.arc(10, 8, 3.5, 0, Math.PI * 2);
   ctx.fill();
   // barrel
-  rect(ctx, 17, 9, 11, 2, p.barrel);
-  rect(ctx, 26, 8, 2, 4, p.barrel);
+  rect(ctx, 13, 7, 9, 2, p.barrel);
+  rect(ctx, 21, 6, 2, 4, p.barrel);
   tex.refresh();
 }
 
@@ -460,17 +462,23 @@ function createInfantry(scene: Phaser.Scene): void {
 }
 
 function createTurret(scene: Phaser.Scene): void {
-  const base = canvas(scene, 'turbase', 22, 22);
+  // wall emplacement: a fortified block matching the wall masonry,
+  // sized to sit on (and read as part of) a wall tile
+  const S = 26;
+  const base = canvas(scene, 'turbase', S, S);
   let ctx = base.getContext();
-  // octagonal concrete emplacement
+  rect(ctx, 0, 0, S, S, '#2c3e38');
+  rect(ctx, 2, 2, S - 4, S - 4, '#57756b');
+  rect(ctx, 2, 2, S - 4, 2, '#6f8f84');
+  rect(ctx, 2, S - 4, S - 4, 2, '#41584f');
+  // octagonal concrete mount on top
+  const cx = S / 2;
   ctx.fillStyle = '#6d6d6d';
   ctx.beginPath();
-  const cx = 11;
-  const cy = 11;
   for (let i = 0; i < 8; i++) {
     const a = (Math.PI / 4) * i + Math.PI / 8;
-    const x = cx + Math.cos(a) * 10;
-    const y = cy + Math.sin(a) * 10;
+    const x = cx + Math.cos(a) * 9;
+    const y = cx + Math.sin(a) * 9;
     if (i === 0) ctx.moveTo(x, y);
     else ctx.lineTo(x, y);
   }
@@ -481,26 +489,26 @@ function createTurret(scene: Phaser.Scene): void {
   ctx.stroke();
   ctx.fillStyle = '#7d7d7d';
   ctx.beginPath();
-  ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+  ctx.arc(cx, cx, 5, 0, Math.PI * 2);
   ctx.fill();
-  for (const [rx, ry] of [[4, 10], [18, 10], [11, 3], [11, 19]] as const) {
-    rect(ctx, rx, ry, 1, 1, '#c9a15c');
+  for (const [rx, ry] of [[4, 4], [S - 6, 4], [4, S - 6], [S - 6, S - 6]] as const) {
+    rect(ctx, rx, ry, 2, 2, '#c9a15c');
   }
   base.refresh();
 
-  const gun = canvas(scene, 'turgun', 24, 10);
+  const gun = canvas(scene, 'turgun', 28, 10);
   ctx = gun.getContext();
-  // mounted at x=6,y=5; barrel to the right
+  // mounted at x=5,y=5; barrel to the right
   ctx.fillStyle = '#4c5443';
   ctx.beginPath();
-  ctx.arc(6, 5, 5, 0, Math.PI * 2);
+  ctx.arc(5, 5, 5, 0, Math.PI * 2);
   ctx.fill();
-  rect(ctx, 9, 4, 13, 2, '#333333');
-  rect(ctx, 20, 3, 3, 4, '#333333');
-  rect(ctx, 9, 4, 13, 1, '#4d4d4d');
+  rect(ctx, 9, 3, 15, 3, '#333333');
+  rect(ctx, 23, 2, 3, 5, '#333333');
+  rect(ctx, 9, 3, 15, 1, '#4d4d4d');
   ctx.fillStyle = '#6d7a5a';
   ctx.beginPath();
-  ctx.arc(5, 4, 3, 0, Math.PI * 2);
+  ctx.arc(4, 4, 3, 0, Math.PI * 2);
   ctx.fill();
   gun.refresh();
 }
@@ -636,18 +644,18 @@ function createPickups(scene: Phaser.Scene): void {
   for (const x of [1, 6, 12]) rect(ctx, x, 4, 1, 4, '#ffd23d');
   tex.refresh();
 
-  // wreck: burned-out hull
-  tex = canvas(scene, 'wreck', 28, 20);
+  // wreck: burned-out hull (matches the 24x16 tank)
+  tex = canvas(scene, 'wreck', 24, 16);
   ctx = tex.getContext();
-  rect(ctx, 3, 1, 22, 4, '#2b2b2b');
-  rect(ctx, 3, 15, 22, 4, '#2b2b2b');
-  rect(ctx, 4, 4, 20, 12, '#3c3833');
+  rect(ctx, 2, 0, 20, 4, '#2b2b2b');
+  rect(ctx, 2, 12, 20, 4, '#2b2b2b');
+  rect(ctx, 3, 3, 18, 10, '#3c3833');
   ctx.fillStyle = '#2b2b2b';
   ctx.beginPath();
-  ctx.arc(13, 10, 5, 0, Math.PI * 2);
+  ctx.arc(10, 8, 4, 0, Math.PI * 2);
   ctx.fill();
-  rect(ctx, 17, 9, 9, 2, '#242424');
-  for (const [x, y] of [[7, 7], [20, 12], [10, 14]] as const) rect(ctx, x, y, 3, 2, '#6b3a22');
+  rect(ctx, 14, 7, 8, 2, '#242424');
+  for (const [x, y] of [[6, 5], [17, 10], [8, 12]] as const) rect(ctx, x, y, 3, 2, '#6b3a22');
   tex.refresh();
 }
 
